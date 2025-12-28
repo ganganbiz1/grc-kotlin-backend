@@ -14,6 +14,7 @@ class Requirement(
     val name: String,
     val shorthand: String,
     val description: String,
+    val displayOrder: Int,
     val controls: List<Control>
 ) {
     override fun equals(other: Any?): Boolean {

@@ -13,6 +13,7 @@ class RequirementCategory(
     val id: RequirementCategoryId,
     val name: String,
     val shorthand: String,
+    val displayOrder: Int,
     val requirements: List<Requirement>
 ) {
     override fun equals(other: Any?): Boolean {
