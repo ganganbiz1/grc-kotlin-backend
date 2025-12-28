@@ -29,6 +29,9 @@ dependencies {
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
 
+    // UUID v7
+    implementation("com.fasterxml.uuid:java-uuid-generator:5.1.0")
+
     // Database
     runtimeOnly("org.postgresql:postgresql")
 
