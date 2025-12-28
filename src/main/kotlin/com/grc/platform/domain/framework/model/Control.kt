@@ -9,9 +9,19 @@ value class ControlId(val value: String) {
     }
 }
 
-data class Control(
+class Control(
     val id: ControlId,
     val externalId: String?,
     val name: String,
     val description: String
-)
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is Control) return false
+        return id == other.id
+    }
+
+    override fun hashCode(): Int = id.hashCode()
+
+    override fun toString(): String = "Control(id=$id, name=$name)"
+}

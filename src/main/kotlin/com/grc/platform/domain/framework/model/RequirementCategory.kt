@@ -9,9 +9,19 @@ value class RequirementCategoryId(val value: String) {
     }
 }
 
-data class RequirementCategory(
+class RequirementCategory(
     val id: RequirementCategoryId,
     val name: String,
     val shorthand: String,
     val requirements: List<Requirement>
-)
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is RequirementCategory) return false
+        return id == other.id
+    }
+
+    override fun hashCode(): Int = id.hashCode()
+
+    override fun toString(): String = "RequirementCategory(id=$id, shorthand=$shorthand)"
+}

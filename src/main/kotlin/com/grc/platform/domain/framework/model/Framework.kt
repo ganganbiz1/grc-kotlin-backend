@@ -9,11 +9,21 @@ value class FrameworkId(val value: String) {
     }
 }
 
-data class Framework(
+class Framework(
     val id: FrameworkId,
     val displayName: String,
     val shorthandName: String,
     val description: String,
     val version: String,
     val requirementCategories: List<RequirementCategory>
-)
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is Framework) return false
+        return id == other.id
+    }
+
+    override fun hashCode(): Int = id.hashCode()
+
+    override fun toString(): String = "Framework(id=$id, shorthandName=$shorthandName)"
+}
