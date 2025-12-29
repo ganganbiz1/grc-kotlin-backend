@@ -1,0 +1,261 @@
+# 境界分け設計（MVP向け）
+
+Kotlin + Postgres / レイヤードアーキテクチャ
+MVP向けの境界分け（複雑化を避ける）
+
+---
+
+## 1. Bounded Context（境界）一覧
+
+本設計は「規格カタログ（定義）」と「テナント運用（状態）」を明確に分離する。
+
+MVPでは以下の4境界に分割する。
+
+| # | 境界名 | パッケージ | 説明 |
+|---|--------|-----------|------|
+| 1 | Framework | `framework` | 規格カタログ（定義） |
+| 2 | Control | `control` | 運用Control（テナント状態） |
+| 3 | Evidence | `evidence` | 証跡 |
+| 4 | Policy | `policy` | 規程 |
+
+### 境界の狙いは「変更頻度」と「責務」を分離すること
+
+| 境界 | 変更頻度 | 責務 | テナント依存 |
+|------|----------|------|-------------|
+| Framework | 低頻度 | 参照中心 | No（共通マスタ） |
+| Control | 高頻度 | 状態/責任/集計中心 | Yes |
+| Evidence | 中頻度 | 保全・整合性中心 | Yes |
+| Policy | 低頻度 | 改訂履歴中心 | Yes |
+
+---
+
+## 2. Framework（規格カタログ）
+
+### 役割
+
+外部規格の構造・文言・識別子を「参照用カタログ」として保持する。
+テナント運用の状態（owner/status/evidence等）は一切持たない。
+
+### 所有する概念（この境界が真実のソース）
+
+| 概念 | 説明 |
+|------|------|
+| **Framework** | 例：SOC 2、ISO27001、ISMAP |
+| **FrameworkVersion** | 版管理（年度・リビジョン）。すべての下位要素は必ずVersionに属する |
+| **RequirementCategory** | 章・ドメイン・カテゴリ（UI表示や構造整理用） |
+| **Requirement** | 規格本文上の要求（意味単位）。下位にControl定義を持つ |
+| **FrameworkControl** | Requirementを満たすための規格上の実施項目定義。定義情報のみを持つ |
+
+### 階層
+
+```
+Framework
+└─ FrameworkVersion
+    └─ RequirementCategory
+        └─ Requirement
+            └─ FrameworkControl（定義）
+```
+
+### この境界が持たないもの（禁止）
+
+- status / owner / note / customFields などの運用情報
+- Evidence / Policy / Test との紐づけ
+- 進捗集計（Completed等のテナント依存集計）
+
+---
+
+## 3. Control（運用）
+
+### 役割
+
+Framework境界の **FrameworkControl（定義）** に対して、
+テナントの運用状態を表す **Control（運用）** を管理する中核境界。
+
+### この境界が答える問い
+
+- このControlは今どの状態か（未着手/進行中/完了など）
+- 誰が責任者か
+- どの証跡（Evidence/Document）やテスト（Test）で満たしているか
+- 補足情報（note/customFields）は何か
+
+### 所有する概念
+
+| 概念 | 説明 |
+|------|------|
+| **Control** | テナント固有の運用管理対象 |
+| - owner | 責任者 |
+| - status | 進捗（NOT_STARTED / IN_PROGRESS / COMPLETED など） |
+| - note / customFields | 補足情報 |
+| - 集計値 | numDocumentsPassing/Total / numTestsPassing/Total 等 |
+| **ControlFrameworkMapping** | FrameworkControlとの紐づけ（多:多） |
+| **ControlEvidenceMapping** | 証跡との紐づけ |
+| **ControlTestMapping** | テストとの紐づけ |
+| **ControlPolicyMapping** | 規程との紐づけ（必要なら） |
+
+#### FrameworkControl と Control は多:多
+
+- 1つの **Control（運用）** が複数の **FrameworkControl（定義）** を満たすことがある
+  - 例：「バックアップポリシー」が SOC2 CC6.1 と ISO27001 A.12.3.1 の両方を満たす
+- 複数規格対応時に、共通Controlの「使い回し」が可能
+- 未着手も Control を作成し、`status=NOT_STARTED` 等で表現する（「未作成=未着手」は避ける）
+
+#### 複数の管理策は Control を分割して表現しない
+
+- 複数性は、Control に紐づく **Evidence/Test/Policy の"複数Mapping"** として表現する
+- Controlの下に「サブControl」「施策」などの小要素エンティティは作らない（MVPでは）
+
+---
+
+## 4. Evidence（証跡）
+
+### 役割
+
+監査に耐える形で証跡を保全・管理する。
+ファイル・URL・スナップショット等を一貫した単位で扱い、整合性情報も保持する。
+
+### 所有する概念
+
+| 概念 | 説明 |
+|------|------|
+| **Evidence** | 証跡の論理単位 |
+| **EvidenceArtifact** | ファイル/URL/スナップショット等の実体 |
+| **IntegrityMetadata** | hash、取得日時、サイズ等 |
+
+### この境界が持たないもの
+
+- 規格定義（Framework/Requirement/FrameworkControl）
+- 運用状態（status/owner）
+- 「この証跡がどのControlを満たすか」の判断（マッピングの所有はControl境界側）
+
+---
+
+## 5. Policy（規程）
+
+### 役割
+
+テナントの社内規程を管理し、改訂履歴を保持する（監査対応）。
+
+### 所有する概念
+
+| 概念 | 説明 |
+|------|------|
+| **Policy** | 社内規程 |
+| **PolicyRevision** | 改訂・版 |
+| **PolicySection** | 章・条・項 |
+
+### この境界が持たないもの
+
+- 規格定義
+- 運用進捗（status/owner）
+- Evidenceの保全
+
+---
+
+## 6. 境界間の関係（Context Map）
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                                                                      │
+│  Framework（定義・全テナント共通）                                   │
+│  └─ FrameworkControl（id: スラッグ形式）                            │
+│                                                                      │
+│         │                                                            │
+│         │ ControlFrameworkMapping（多:多）                          │
+│         │                                                            │
+│         ▼                                                            │
+│  Control（運用・テナント固有）                                       │
+│  └─ Control（id: ObjectId形式）                                     │
+│         │                                                            │
+│         ├─ ControlEvidenceMapping → Evidence                        │
+│         ├─ ControlTestMapping     → (Test)                          │
+│         └─ ControlPolicyMapping   → Policy                          │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 7. 命名方針（チーム内の統一用）
+
+| 用語 | 意味 | ID形式 |
+|------|------|--------|
+| **FrameworkControl** | 規格が定めた「定義」 | スラッグ（`background-checks-performed`） |
+| **Control** | テナントの「運用管理対象」 | ObjectId（`a2f7e1b9d0c3...`） |
+| **Evidence** | 「証跡（Documents）」 | - |
+| **Requirement** | 「要求（意味単位）」 | - |
+
+### チーム内共通説明文
+
+> 「FrameworkControl は規格の定義。Control はテナントの運用管理対象。
+> 1つのControlが複数のFrameworkControlを満たすことがある（多:多）。
+> 複数の対策は Control に紐づく証跡・テスト・規程Mappingの集合で表す。」
+
+---
+
+## 8. MVPでの合意事項（実装に落とすための最小ルール）
+
+1. **Framework と Control は別境界として分離する**
+
+2. **FrameworkControl と Control は多:多（ControlFrameworkMappingで管理）**
+
+3. **未着手も Control を作り status で表現する**
+
+4. **複数の管理策は、Control ↔ Evidence/Test/Policy の複数Mappingで表現する（サブ要素は作らない）**
+
+5. **すべてのMappingはControl境界が所有する**
+   - 「このControlはどの証跡で満たされているか」というControl起点のクエリが主用途
+   - 境界を増やすと実装・運用コストが上がる
+   - 将来Mappingに複雑なロジック（承認フロー、有効期限等）が追加されたら境界分離を検討
+
+6. **Mapping操作は `ControlMappingService` に集約する**
+   - GRC業務はマッピングが複雑化しやすいため、早期にサービス層で抽象化する
+   - 単体テストでモック化しやすくなる
+   - `ControlService`がシンプルになる
+   - 将来の境界分離時にも変更が容易
+
+---
+
+## 9. パッケージ構造
+
+```
+com.grc.platform/
+├── domain/
+│   ├── framework/           # 1. Framework（規格カタログ）
+│   │   ├── model/
+│   │   │   ├── Framework.kt
+│   │   │   ├── FrameworkVersion.kt
+│   │   │   ├── RequirementCategory.kt
+│   │   │   ├── Requirement.kt
+│   │   │   └── FrameworkControl.kt
+│   │   └── repository/
+│   │
+│   ├── control/             # 2. Control（運用）
+│   │   ├── model/
+│   │   │   ├── Control.kt
+│   │   │   ├── ControlStatus.kt
+│   │   │   ├── ControlFrameworkMapping.kt
+│   │   │   ├── ControlEvidenceMapping.kt
+│   │   │   ├── ControlTestMapping.kt
+│   │   │   └── ControlPolicyMapping.kt
+│   │   ├── service/
+│   │   │   └── ControlMappingService.kt
+│   │   └── repository/
+│   │
+│   ├── evidence/            # 3. Evidence（証跡）
+│   │   ├── model/
+│   │   │   ├── Evidence.kt
+│   │   │   ├── EvidenceArtifact.kt
+│   │   │   └── IntegrityMetadata.kt
+│   │   └── repository/
+│   │
+│   └── policy/              # 4. Policy（規程）
+│       ├── model/
+│       │   ├── Policy.kt
+│       │   ├── PolicyRevision.kt
+│       │   └── PolicySection.kt
+│       └── repository/
+│
+├── application/             # アプリケーションサービス
+├── infrastructure/          # インフラストラクチャ層
+└── interfaces/              # API / Controller
+```
