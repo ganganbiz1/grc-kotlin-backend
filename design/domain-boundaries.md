@@ -46,6 +46,54 @@ MVPでは以下の4境界に分割する。
 | **Requirement** | 規格本文上の要求（意味単位）。下位にControl定義を持つ |
 | **FrameworkControl** | Requirementを満たすための規格上の実施項目定義。定義情報のみを持つ |
 
+### FrameworkControlの属性
+
+slugをPKにすると文言修正・翻訳・衝突で破綻するため、UUIDを主キーとする。
+
+| 属性 | 型 | 説明 |
+|------|-----|------|
+| **id** | UUID | 内部主キー（不変、マッピング参照用） |
+| **canonicalKey** | String | 規格側の安定キー（例：`ISO27001:2022:A.5.15`、`SOC2:CC6.1`） |
+| **displayCode** | String | 画面表示用の番号（例：`A.5.15`、`CC6.1`） |
+| **slug** | String | URL用の表示キー（PKではない、変更可能） |
+| **title** | String | タイトル・見出し |
+| **text** | String | 規格本文の文言 |
+| **contentHash** | String | 正規化テキストのハッシュ（差分検知補助） |
+| **requirementId** | UUID | 親Requirementへの参照 |
+| **predecessorIds** | List\<UUID\> | 前版で対応するFrameworkControlのID群（改訂引き継ぎ用） |
+| **mappingPolicy** | Enum | 改訂時のマッピング移行ポリシー |
+
+### FrameworkControlの改訂引き継ぎ
+
+規格改訂時（例：ISO27001:2013 → ISO27001:2022）のマッピング引き継ぎは業務上の大きなペインとなる。
+これを支援するため、FrameworkControlは前版との継承関係を持つ。
+
+#### mappingPolicy の値
+
+| 値 | 説明 |
+|----|------|
+| **AUTO_MIGRATE** | 既存Controlのマッピングを自動で新版に移行 |
+| **MANUAL_REVIEW** | テナントに確認を促し、手動でマッピングを移行 |
+| **DEPRECATED** | 廃止された要件。マッピング移行不要 |
+
+#### 改訂時の運用フロー
+
+1. 新FrameworkVersionをインポート
+2. 各FrameworkControlに`predecessorIds`で旧版との対応を定義
+3. `mappingPolicy`に基づき処理：
+   - `AUTO_MIGRATE`: 既存ControlのマッピングをバッチJob等で自動移行
+   - `MANUAL_REVIEW`: テナントのダッシュボードに確認タスクを表示
+   - `DEPRECATED`: 対応する旧マッピングをアーカイブ/削除
+4. 移行完了後、旧FrameworkVersionは参照のみ（編集不可）に設定
+
+#### 分割・統合への対応
+
+| ケース | 対応方法 |
+|--------|----------|
+| 1対1（単純改訂） | `predecessorIds`に1件設定 |
+| 1対多（分割） | 複数の新FrameworkControlが同じ`predecessorId`を持つ。`MANUAL_REVIEW`推奨 |
+| 多対1（統合） | `predecessorIds`に複数件設定。マッピングは和集合で移行 |
+
 ### 階層
 
 ```
@@ -179,10 +227,10 @@ Framework境界の **FrameworkControl（定義）** に対して、
 
 | 用語 | 意味 | ID形式 |
 |------|------|--------|
-| **FrameworkControl** | 規格が定めた「定義」 | スラッグ（`background-checks-performed`） |
-| **Control** | テナントの「運用管理対象」 | ObjectId（`a2f7e1b9d0c3...`） |
-| **Evidence** | 「証跡（Documents）」 | - |
-| **Requirement** | 「要求（意味単位）」 | - |
+| **FrameworkControl** | 規格が定めた「定義」 | UUID（内部PK） |
+| **Control** | テナントの「運用管理対象」 | UUID |
+| **Evidence** | 「証跡（Documents）」 | UUID |
+| **Requirement** | 「要求（意味単位）」 | UUID |
 
 ### チーム内共通説明文
 
