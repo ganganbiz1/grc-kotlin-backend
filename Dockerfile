@@ -12,6 +12,9 @@ COPY settings.gradle.kts .
 # Download dependencies (cached layer)
 RUN chmod +x gradlew && ./gradlew dependencies --no-daemon
 
+# Copy OpenAPI specification
+COPY openapi openapi
+
 # Copy source code
 COPY src src
 
