@@ -25,8 +25,8 @@ Thumbs.db
 .env.test
 .env.production
 
-# Claude Code
-.claude
+# Claude Code (個人設定のみignore)
+.claude/settings.local.json
 
 # Logs
 *.log
