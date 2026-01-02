@@ -102,7 +102,7 @@ erDiagram
 | id | UUID | PK |
 | category_id | UUID | FK → requirement_categories.id |
 | code | VARCHAR(50) | 要求コード（例：CC6.1） |
-| title | VARCHAR(500) | タイトル |
+| title | VARCHAR(255) | タイトル |
 | text | TEXT | 規格本文 |
 | display_order | INT | 表示順 |
 | created_at | TIMESTAMP | 作成日時 |
@@ -119,8 +119,7 @@ erDiagram
 | framework_version_id | UUID | FK → framework_versions.id（冗長だがクエリ効率化用） |
 | canonical_key | VARCHAR(100) | 規格側の安定キー（**版込み必須**、例：`ISO27001:2022:A.5.15`） |
 | display_code | VARCHAR(50) | 画面表示用番号（例：A.5.15） |
-| slug | VARCHAR(200) | URL用表示キー（変更可能） |
-| title | VARCHAR(500) | タイトル |
+| title | VARCHAR(255) | タイトル |
 | text | TEXT | 規格本文の文言 |
 | content_hash | VARCHAR(64) | 正規化テキストのハッシュ（SHA-256） |
 | mapping_policy | VARCHAR(20) | AUTO_MIGRATE / MANUAL_REVIEW / DEPRECATED |
@@ -130,7 +129,6 @@ erDiagram
 
 **インデックス:**
 - UNIQUE(canonical_key) ※canonical_keyは版込み形式（例：`ISO27001:2022:A.5.15`）を強制
-- UNIQUE(slug)
 
 ### framework_control_predecessors
 
