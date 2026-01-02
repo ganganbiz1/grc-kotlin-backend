@@ -1,108 +1,121 @@
--- Framework tables for GRC Platform
--- V1: Initial schema
+-- =====================================================
+-- V1: Framework境界（共通マスタ）
+-- 規格カタログとして全テナントで共有されるテーブル群
+-- =====================================================
 
--- Controls (independent entity)
-CREATE TABLE controls (
-    id VARCHAR(36) PRIMARY KEY,
-    external_id VARCHAR(255),
-    name VARCHAR(255) NOT NULL,
-    description TEXT NOT NULL,
-    created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL
-);
-
-COMMENT ON TABLE controls IS 'セキュリティ統制。複数のRequirementで再利用可能な独立エンティティ';
-COMMENT ON COLUMN controls.id IS '主キー（UUID v7）';
-COMMENT ON COLUMN controls.external_id IS '外部システムとの連携用ID';
-COMMENT ON COLUMN controls.name IS '統制名';
-COMMENT ON COLUMN controls.description IS '統制の詳細説明';
-COMMENT ON COLUMN controls.created_at IS '作成日時';
-COMMENT ON COLUMN controls.updated_at IS '更新日時';
-
--- Frameworks
+-- 規格マスタ（SOC2、ISO27001、ISMAP等）
 CREATE TABLE frameworks (
-    id VARCHAR(36) PRIMARY KEY,
-    display_name VARCHAR(255) NOT NULL,
-    shorthand_name VARCHAR(50) NOT NULL,
-    description TEXT NOT NULL,
+    id UUID PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+COMMENT ON TABLE frameworks IS '規格マスタ（SOC2、ISO27001、ISMAP等）';
+COMMENT ON COLUMN frameworks.id IS 'UUID v7';
+COMMENT ON COLUMN frameworks.name IS '規格名（例：SOC 2）';
+COMMENT ON COLUMN frameworks.description IS '説明';
+
+-- 規格の版管理
+CREATE TABLE framework_versions (
+    id UUID PRIMARY KEY,
+    framework_id UUID NOT NULL REFERENCES frameworks(id) ,
     version VARCHAR(50) NOT NULL,
-    created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL
+    status VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
+    effective_date DATE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_framework_versions_status CHECK (status IN ('DRAFT', 'ACTIVE', 'ARCHIVED'))
 );
 
-COMMENT ON TABLE frameworks IS 'コンプライアンスフレームワーク（SOC2, ISO27001, GDPR等）';
-COMMENT ON COLUMN frameworks.id IS '主キー（UUID v7）';
-COMMENT ON COLUMN frameworks.display_name IS '表示名（例: SOC 2 Type II）';
-COMMENT ON COLUMN frameworks.shorthand_name IS '略称（例: SOC2）';
-COMMENT ON COLUMN frameworks.description IS 'フレームワークの説明';
-COMMENT ON COLUMN frameworks.version IS 'バージョン';
-COMMENT ON COLUMN frameworks.created_at IS '作成日時';
-COMMENT ON COLUMN frameworks.updated_at IS '更新日時';
+COMMENT ON TABLE framework_versions IS '規格の版管理';
+COMMENT ON COLUMN framework_versions.version IS '版名（例：2022、Type II）';
+COMMENT ON COLUMN framework_versions.status IS 'DRAFT / ACTIVE / ARCHIVED';
+COMMENT ON COLUMN framework_versions.effective_date IS '発効日';
 
--- Requirement Categories (belongs to Framework)
+CREATE INDEX idx_framework_versions_framework_id ON framework_versions(framework_id);
+
+-- 章・ドメイン・カテゴリ
 CREATE TABLE requirement_categories (
-    id VARCHAR(36) PRIMARY KEY,
-    framework_id VARCHAR(36) NOT NULL REFERENCES frameworks(id),
-    name VARCHAR(255) NOT NULL,
-    shorthand VARCHAR(50) NOT NULL,
-    display_order INT NOT NULL,
-    created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL
+    id UUID PRIMARY KEY,
+    framework_version_id UUID NOT NULL REFERENCES framework_versions(id) ,
+    parent_id UUID REFERENCES requirement_categories(id) ,
+    name VARCHAR(200) NOT NULL,
+    display_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-COMMENT ON TABLE requirement_categories IS '要件カテゴリ。フレームワーク内の要件をグループ化する見出し';
-COMMENT ON COLUMN requirement_categories.id IS '主キー（UUID v7）';
-COMMENT ON COLUMN requirement_categories.framework_id IS '所属するフレームワークのID';
-COMMENT ON COLUMN requirement_categories.name IS 'カテゴリ名（例: Common Criteria）';
-COMMENT ON COLUMN requirement_categories.shorthand IS '略称（例: CC）';
-COMMENT ON COLUMN requirement_categories.display_order IS '表示順序（昇順）';
-COMMENT ON COLUMN requirement_categories.created_at IS '作成日時';
-COMMENT ON COLUMN requirement_categories.updated_at IS '更新日時';
+COMMENT ON TABLE requirement_categories IS '章・ドメイン・カテゴリ';
+COMMENT ON COLUMN requirement_categories.parent_id IS '自己参照（階層構造用、NULL可）';
+COMMENT ON COLUMN requirement_categories.display_order IS '表示順';
 
--- Requirements (belongs to RequirementCategory)
+CREATE INDEX idx_requirement_categories_version_id ON requirement_categories(framework_version_id);
+CREATE INDEX idx_requirement_categories_parent_id ON requirement_categories(parent_id);
+
+-- 規格本文上の要求（意味単位）
 CREATE TABLE requirements (
-    id VARCHAR(36) PRIMARY KEY,
-    category_id VARCHAR(36) NOT NULL REFERENCES requirement_categories(id),
-    name VARCHAR(255) NOT NULL,
-    shorthand VARCHAR(50) NOT NULL,
-    description TEXT NOT NULL,
-    display_order INT NOT NULL,
-    created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL
+    id UUID PRIMARY KEY,
+    category_id UUID NOT NULL REFERENCES requirement_categories(id) ,
+    code VARCHAR(50) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    text TEXT,
+    display_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-COMMENT ON TABLE requirements IS '要件。フレームワークの最小単位となる具体的な要求事項';
-COMMENT ON COLUMN requirements.id IS '主キー（UUID v7）';
-COMMENT ON COLUMN requirements.category_id IS '所属するカテゴリのID';
-COMMENT ON COLUMN requirements.name IS '要件名';
-COMMENT ON COLUMN requirements.shorthand IS '略称（例: CC1.1）';
-COMMENT ON COLUMN requirements.description IS '要件の詳細説明';
-COMMENT ON COLUMN requirements.display_order IS '表示順序（昇順）';
-COMMENT ON COLUMN requirements.created_at IS '作成日時';
-COMMENT ON COLUMN requirements.updated_at IS '更新日時';
+COMMENT ON TABLE requirements IS '規格本文上の要求（意味単位）';
+COMMENT ON COLUMN requirements.code IS '要求コード（例：CC6.1）';
+COMMENT ON COLUMN requirements.title IS 'タイトル';
+COMMENT ON COLUMN requirements.text IS '規格本文';
 
--- Requirement-Control mapping (N:N)
-CREATE TABLE requirement_controls (
-    id VARCHAR(36) PRIMARY KEY,
-    requirement_id VARCHAR(36) NOT NULL REFERENCES requirements(id),
-    control_id VARCHAR(36) NOT NULL REFERENCES controls(id),
-    created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL,
-    UNIQUE (requirement_id, control_id)
-);
-
-COMMENT ON TABLE requirement_controls IS '要件と統制のマッピング。マッピング自体が監査対象となるEntity';
-COMMENT ON COLUMN requirement_controls.id IS '主キー（UUID v7）';
-COMMENT ON COLUMN requirement_controls.requirement_id IS '要件ID';
-COMMENT ON COLUMN requirement_controls.control_id IS '統制ID';
-COMMENT ON COLUMN requirement_controls.created_at IS '作成日時';
-COMMENT ON COLUMN requirement_controls.updated_at IS '更新日時';
-
--- Indexes
-CREATE INDEX idx_requirement_categories_framework_id ON requirement_categories(framework_id);
 CREATE INDEX idx_requirements_category_id ON requirements(category_id);
-CREATE INDEX idx_requirement_controls_control_id ON requirement_controls(control_id);
 
--- Unique constraints for display_order within parent
-CREATE UNIQUE INDEX idx_requirement_categories_framework_order ON requirement_categories(framework_id, display_order);
-CREATE UNIQUE INDEX idx_requirements_category_order ON requirements(category_id, display_order);
+-- 規格上の実施項目定義
+CREATE TABLE framework_controls (
+    id UUID PRIMARY KEY,
+    requirement_id UUID NOT NULL REFERENCES requirements(id) ,
+    framework_version_id UUID NOT NULL REFERENCES framework_versions(id) ,
+    canonical_key VARCHAR(100) NOT NULL,
+    display_code VARCHAR(50) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    text TEXT,
+    content_hash VARCHAR(64),
+    mapping_policy VARCHAR(20) NOT NULL DEFAULT 'AUTO_MIGRATE',
+    display_order INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_framework_controls_mapping_policy CHECK (mapping_policy IN ('AUTO_MIGRATE', 'MANUAL_REVIEW', 'DEPRECATED'))
+);
+
+COMMENT ON TABLE framework_controls IS '規格上の実施項目定義';
+COMMENT ON COLUMN framework_controls.framework_version_id IS '冗長だがクエリ効率化用';
+COMMENT ON COLUMN framework_controls.canonical_key IS '規格側の安定キー（版込み必須、例：ISO27001:2022:A.5.15）';
+COMMENT ON COLUMN framework_controls.display_code IS '画面表示用番号（例：A.5.15）';
+COMMENT ON COLUMN framework_controls.content_hash IS '正規化テキストのハッシュ（SHA-256）';
+COMMENT ON COLUMN framework_controls.mapping_policy IS 'AUTO_MIGRATE / MANUAL_REVIEW / DEPRECATED';
+
+CREATE UNIQUE INDEX idx_framework_controls_canonical_key ON framework_controls(canonical_key);
+CREATE INDEX idx_framework_controls_requirement_id ON framework_controls(requirement_id);
+CREATE INDEX idx_framework_controls_version_id ON framework_controls(framework_version_id);
+
+-- FrameworkControlの前版との対応（改訂引き継ぎ用）
+CREATE TABLE framework_control_predecessors (
+    id UUID PRIMARY KEY,
+    framework_control_id UUID NOT NULL REFERENCES framework_controls(id) ,
+    predecessor_id UUID NOT NULL REFERENCES framework_controls(id) ,
+    status VARCHAR(20) NOT NULL DEFAULT 'SUGGESTED',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_predecessors_status CHECK (status IN ('SUGGESTED', 'CONFIRMED', 'REJECTED')),
+    CONSTRAINT uq_framework_control_predecessor UNIQUE (framework_control_id, predecessor_id)
+);
+
+COMMENT ON TABLE framework_control_predecessors IS 'FrameworkControlの前版との対応（改訂引き継ぎ用）';
+COMMENT ON COLUMN framework_control_predecessors.framework_control_id IS '新版側';
+COMMENT ON COLUMN framework_control_predecessors.predecessor_id IS '旧版側';
+COMMENT ON COLUMN framework_control_predecessors.status IS 'SUGGESTED / CONFIRMED / REJECTED';
+
+CREATE INDEX idx_predecessors_control_id ON framework_control_predecessors(framework_control_id);
+CREATE INDEX idx_predecessors_predecessor_id ON framework_control_predecessors(predecessor_id);

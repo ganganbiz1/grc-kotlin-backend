@@ -1,8 +1,9 @@
-package com.grc.platform.infrastructure.persistence.framework.entity
+package com.grc.platform.infrastructure.persistence.evidence.entity
 
-import com.grc.platform.domain.framework.model.Framework
-import com.grc.platform.domain.framework.model.FrameworkId
-import com.grc.platform.domain.framework.model.FrameworkVersion
+import com.grc.platform.domain.control.model.TenantId
+import com.grc.platform.domain.evidence.model.Evidence
+import com.grc.platform.domain.evidence.model.EvidenceArtifact
+import com.grc.platform.domain.evidence.model.EvidenceId
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.Id
@@ -11,13 +12,16 @@ import java.time.Instant
 import java.util.UUID
 
 @Entity
-@Table(name = "frameworks")
-class FrameworkJpaEntity(
+@Table(name = "evidences")
+class EvidenceJpaEntity(
     @Id
     @Column(name = "id", nullable = false, columnDefinition = "uuid")
     val id: UUID,
 
-    @Column(name = "name", nullable = false, length = 100)
+    @Column(name = "tenant_id", nullable = false, columnDefinition = "uuid")
+    val tenantId: UUID,
+
+    @Column(name = "name", nullable = false, length = 200)
     val name: String,
 
     @Column(name = "description", columnDefinition = "TEXT")
@@ -29,24 +33,27 @@ class FrameworkJpaEntity(
     @Column(name = "updated_at", nullable = false)
     val updatedAt: Instant
 ) {
-    fun toDomain(versions: List<FrameworkVersion> = emptyList()): Framework = Framework(
-        id = FrameworkId(id),
+    fun toDomain(artifacts: List<EvidenceArtifact> = emptyList()): Evidence = Evidence(
+        id = EvidenceId(id),
+        tenantId = TenantId(tenantId),
         name = name,
         description = description,
-        versions = versions
+        artifacts = artifacts
     )
 
     companion object {
-        fun fromDomain(domain: Framework, now: Instant): FrameworkJpaEntity = FrameworkJpaEntity(
+        fun fromDomain(domain: Evidence, now: Instant): EvidenceJpaEntity = EvidenceJpaEntity(
             id = domain.id.value,
+            tenantId = domain.tenantId.value,
             name = domain.name,
             description = domain.description,
             createdAt = now,
             updatedAt = now
         )
 
-        fun fromDomain(domain: Framework, createdAt: Instant, updatedAt: Instant): FrameworkJpaEntity = FrameworkJpaEntity(
+        fun fromDomain(domain: Evidence, createdAt: Instant, updatedAt: Instant): EvidenceJpaEntity = EvidenceJpaEntity(
             id = domain.id.value,
+            tenantId = domain.tenantId.value,
             name = domain.name,
             description = domain.description,
             createdAt = createdAt,
