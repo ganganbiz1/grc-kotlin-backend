@@ -1,0 +1,292 @@
+openapi: 3.0.3
+info:
+  title: GRC Platform - Framework API
+  description: 規格管理API（SOC2、ISO27001、ISMAP等の規格マスタを管理）
+  version: 1.0.0
+
+servers:
+  - url: /api
+    description: API base path
+
+tags:
+  - name: Framework
+    description: 規格の管理
+
+paths:
+  /frameworks:
+    get:
+      tags:
+        - Framework
+      summary: 規格一覧取得
+      description: 登録されている全ての規格を取得する
+      operationId: listFrameworks
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FrameworkSummary'
+
+    post:
+      tags:
+        - Framework
+      summary: 規格作成
+      description: 新しい規格を作成する
+      operationId: createFramework
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFrameworkRequest'
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrameworkIdResponse'
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /frameworks/{id}:
+    get:
+      tags:
+        - Framework
+      summary: 規格詳細取得
+      description: 指定したIDの規格詳細を取得する
+      operationId: getFramework
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 規格ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrameworkDetail'
+        '404':
+          description: 規格が見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Framework
+      summary: 規格更新
+      description: 指定したIDの規格を更新する
+      operationId: updateFramework
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 規格ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateFrameworkRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrameworkDetail'
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 規格が見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Framework
+      summary: 規格削除
+      description: 指定したIDの規格を削除する
+      operationId: deleteFramework
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 規格ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 削除成功
+        '404':
+          description: 規格が見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    CreateFrameworkRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: 規格名
+          example: SOC2
+        description:
+          type: string
+          maxLength: 1000
+          description: 規格の説明
+          example: SOC2 Type II コンプライアンスフレームワーク
+
+    UpdateFrameworkRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: 規格名
+          example: SOC2
+        description:
+          type: string
+          maxLength: 1000
+          description: 規格の説明
+          example: SOC2 Type II コンプライアンスフレームワーク
+
+    FrameworkIdResponse:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 作成された規格のID
+
+    FrameworkSummary:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 規格ID
+        name:
+          type: string
+          description: 規格名
+        description:
+          type: string
+          description: 規格の説明
+
+    FrameworkDetail:
+      type: object
+      required:
+        - id
+        - name
+        - versions
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 規格ID
+        name:
+          type: string
+          description: 規格名
+        description:
+          type: string
+          description: 規格の説明
+        versions:
+          type: array
+          items:
+            $ref: '#/components/schemas/FrameworkVersionSummary'
+          description: 規格の版一覧
+
+    FrameworkVersionSummary:
+      type: object
+      required:
+        - id
+        - versionNumber
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 版ID
+        versionNumber:
+          type: string
+          description: バージョン番号
+          example: "2024.1"
+        status:
+          $ref: '#/components/schemas/VersionStatus'
+        releaseDate:
+          type: string
+          format: date
+          description: リリース日
+
+    VersionStatus:
+      type: string
+      enum:
+        - DRAFT
+        - ACTIVE
+        - ARCHIVED
+      description: 版のステータス
+
+    ErrorResponse:
+      type: object
+      required:
+        - timestamp
+        - status
+        - error
+        - message
+        - path
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: エラー発生日時
+        status:
+          type: integer
+          description: HTTPステータスコード
+        error:
+          type: string
+          description: エラー種別
+        message:
+          type: string
+          description: エラーメッセージ
+        path:
+          type: string
+          description: リクエストパス
