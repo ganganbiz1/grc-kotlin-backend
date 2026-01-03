@@ -2,12 +2,16 @@ package com.grc.platform.application.framework
 
 import com.grc.platform.domain.framework.model.Framework
 import com.grc.platform.domain.framework.model.FrameworkId
+import com.grc.platform.domain.framework.model.FrameworkVersion
+import com.grc.platform.domain.framework.model.FrameworkVersionId
+import com.grc.platform.domain.framework.model.FrameworkVersionStatus
 import com.grc.platform.domain.framework.repository.FrameworkRepository
 import com.grc.platform.presentation.framework.model.FrameworkDetail
 import com.grc.platform.presentation.framework.model.FrameworkVersionSummary
 import com.grc.platform.presentation.framework.model.VersionStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDate
 
 @Service
 @Transactional
@@ -42,6 +46,67 @@ class FrameworkCommandServiceImpl(
         val existing = frameworkRepository.findById(id) ?: return false
         frameworkRepository.delete(existing.id)
         return true
+    }
+
+    override fun createVersion(
+        frameworkId: FrameworkId,
+        versionNumber: String,
+        effectiveDate: LocalDate?
+    ): FrameworkVersionId? {
+        val framework = frameworkRepository.findById(frameworkId) ?: return null
+
+        val newVersion = FrameworkVersion(
+            id = FrameworkVersionId.generate(),
+            frameworkId = frameworkId,
+            version = versionNumber,
+            status = FrameworkVersionStatus.DRAFT,
+            effectiveDate = effectiveDate
+        )
+
+        val updatedFramework = Framework(
+            id = framework.id,
+            name = framework.name,
+            description = framework.description,
+            versions = framework.versions + newVersion
+        )
+
+        frameworkRepository.save(updatedFramework)
+        return newVersion.id
+    }
+
+    override fun activateVersion(versionId: FrameworkVersionId): Boolean {
+        val allFrameworks = frameworkRepository.findAll()
+
+        for (framework in allFrameworks) {
+            val versionToActivate = framework.versions.find { it.id == versionId }
+            if (versionToActivate != null) {
+                val updatedVersions = framework.versions.map { version ->
+                    if (version.id == versionId) {
+                        FrameworkVersion(
+                            id = version.id,
+                            frameworkId = version.frameworkId,
+                            version = version.version,
+                            status = FrameworkVersionStatus.ACTIVE,
+                            effectiveDate = version.effectiveDate,
+                            categories = version.categories
+                        )
+                    } else {
+                        version
+                    }
+                }
+
+                val updatedFramework = Framework(
+                    id = framework.id,
+                    name = framework.name,
+                    description = framework.description,
+                    versions = updatedVersions
+                )
+
+                frameworkRepository.save(updatedFramework)
+                return true
+            }
+        }
+        return false
     }
 
     private fun toFrameworkDetail(framework: Framework): FrameworkDetail {

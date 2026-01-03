@@ -149,6 +149,72 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /frameworks/{id}/versions:
+    post:
+      tags:
+        - Framework
+      summary: 版作成
+      description: 指定した規格に新しい版を作成する
+      operationId: createVersion
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 規格ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVersionRequest'
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionIdResponse'
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 規格が見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /frameworks/versions/{versionId}/activate:
+    post:
+      tags:
+        - Framework
+      summary: 版を有効化
+      description: 指定した版のステータスをACTIVEに変更する
+      operationId: activateVersion
+      parameters:
+        - name: versionId
+          in: path
+          required: true
+          description: 版ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 有効化成功
+        '404':
+          description: 版が見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   schemas:
     CreateFrameworkRequest:
@@ -194,6 +260,32 @@ components:
           type: string
           format: uuid
           description: 作成された規格のID
+
+    CreateVersionRequest:
+      type: object
+      required:
+        - versionNumber
+      properties:
+        versionNumber:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: バージョン番号
+          example: "2024.1"
+        effectiveDate:
+          type: string
+          format: date
+          description: 発効日
+
+    VersionIdResponse:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: 作成された版のID
 
     FrameworkSummary:
       type: object

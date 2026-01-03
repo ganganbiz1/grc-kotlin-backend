@@ -3,12 +3,15 @@ package com.grc.platform.presentation.framework
 import com.grc.platform.application.framework.FrameworkCommandService
 import com.grc.platform.application.framework.FrameworkQueryService
 import com.grc.platform.domain.framework.model.FrameworkId
+import com.grc.platform.domain.framework.model.FrameworkVersionId
 import com.grc.platform.presentation.framework.api.FrameworkApi
 import com.grc.platform.presentation.framework.model.CreateFrameworkRequest
 import com.grc.platform.presentation.framework.model.FrameworkDetail
 import com.grc.platform.presentation.framework.model.FrameworkIdResponse
 import com.grc.platform.presentation.framework.model.FrameworkSummary
 import com.grc.platform.presentation.framework.model.UpdateFrameworkRequest
+import com.grc.platform.presentation.framework.model.CreateVersionRequest
+import com.grc.platform.presentation.framework.model.VersionIdResponse
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.RestController
@@ -55,6 +58,29 @@ class FrameworkController(
     override fun deleteFramework(id: UUID): ResponseEntity<Unit> {
         val deleted = commandService.deleteFramework(FrameworkId(id))
         return if (deleted) {
+            ResponseEntity.noContent().build()
+        } else {
+            ResponseEntity.notFound().build()
+        }
+    }
+
+    override fun createVersion(
+        id: UUID,
+        createVersionRequest: CreateVersionRequest
+    ): ResponseEntity<VersionIdResponse> {
+        val versionId = commandService.createVersion(
+            frameworkId = FrameworkId(id),
+            versionNumber = createVersionRequest.versionNumber,
+            effectiveDate = createVersionRequest.effectiveDate
+        ) ?: return ResponseEntity.notFound().build()
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+            .body(VersionIdResponse(id = versionId.value))
+    }
+
+    override fun activateVersion(versionId: UUID): ResponseEntity<Unit> {
+        val activated = commandService.activateVersion(FrameworkVersionId(versionId))
+        return if (activated) {
             ResponseEntity.noContent().build()
         } else {
             ResponseEntity.notFound().build()
