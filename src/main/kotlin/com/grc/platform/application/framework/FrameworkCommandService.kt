@@ -1,7 +1,9 @@
 package com.grc.platform.application.framework
 
 import com.grc.platform.domain.framework.model.FrameworkId
+import com.grc.platform.domain.framework.model.FrameworkVersionId
 import com.grc.platform.presentation.framework.model.FrameworkDetail
+import java.time.LocalDate
 
 /**
  * Framework更新系サービスのインターフェース
@@ -21,4 +23,9 @@ interface FrameworkCommandService {
      * 規格を削除する
      */
     fun deleteFramework(id: FrameworkId): Boolean
+
+    /**
+     * 版を新規作成する
+     */
+    fun createVersion(frameworkId: FrameworkId, versionNumber: String, effectiveDate: LocalDate?): FrameworkVersionId?
 }

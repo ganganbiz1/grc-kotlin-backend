@@ -9,6 +9,8 @@ import com.grc.platform.presentation.framework.model.FrameworkDetail
 import com.grc.platform.presentation.framework.model.FrameworkIdResponse
 import com.grc.platform.presentation.framework.model.FrameworkSummary
 import com.grc.platform.presentation.framework.model.UpdateFrameworkRequest
+import com.grc.platform.presentation.framework.model.CreateVersionRequest
+import com.grc.platform.presentation.framework.model.VersionIdResponse
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.RestController
@@ -59,5 +61,19 @@ class FrameworkController(
         } else {
             ResponseEntity.notFound().build()
         }
+    }
+
+    override fun createVersion(
+        id: UUID,
+        createVersionRequest: CreateVersionRequest
+    ): ResponseEntity<VersionIdResponse> {
+        val versionId = commandService.createVersion(
+            frameworkId = FrameworkId(id),
+            versionNumber = createVersionRequest.versionNumber,
+            effectiveDate = createVersionRequest.effectiveDate
+        ) ?: return ResponseEntity.notFound().build()
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+            .body(VersionIdResponse(id = versionId.value))
     }
 }
