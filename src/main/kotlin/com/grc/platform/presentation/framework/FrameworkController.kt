@@ -3,6 +3,7 @@ package com.grc.platform.presentation.framework
 import com.grc.platform.application.framework.FrameworkCommandService
 import com.grc.platform.application.framework.FrameworkQueryService
 import com.grc.platform.domain.framework.model.FrameworkId
+import com.grc.platform.domain.framework.model.FrameworkVersionId
 import com.grc.platform.presentation.framework.api.FrameworkApi
 import com.grc.platform.presentation.framework.model.CreateFrameworkRequest
 import com.grc.platform.presentation.framework.model.FrameworkDetail
@@ -75,5 +76,14 @@ class FrameworkController(
 
         return ResponseEntity.status(HttpStatus.CREATED)
             .body(VersionIdResponse(id = versionId.value))
+    }
+
+    override fun activateVersion(versionId: UUID): ResponseEntity<Unit> {
+        val activated = commandService.activateVersion(FrameworkVersionId(versionId))
+        return if (activated) {
+            ResponseEntity.noContent().build()
+        } else {
+            ResponseEntity.notFound().build()
+        }
     }
 }

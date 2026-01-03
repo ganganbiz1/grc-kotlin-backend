@@ -74,6 +74,41 @@ class FrameworkCommandServiceImpl(
         return newVersion.id
     }
 
+    override fun activateVersion(versionId: FrameworkVersionId): Boolean {
+        val allFrameworks = frameworkRepository.findAll()
+
+        for (framework in allFrameworks) {
+            val versionToActivate = framework.versions.find { it.id == versionId }
+            if (versionToActivate != null) {
+                val updatedVersions = framework.versions.map { version ->
+                    if (version.id == versionId) {
+                        FrameworkVersion(
+                            id = version.id,
+                            frameworkId = version.frameworkId,
+                            version = version.version,
+                            status = FrameworkVersionStatus.ACTIVE,
+                            effectiveDate = version.effectiveDate,
+                            categories = version.categories
+                        )
+                    } else {
+                        version
+                    }
+                }
+
+                val updatedFramework = Framework(
+                    id = framework.id,
+                    name = framework.name,
+                    description = framework.description,
+                    versions = updatedVersions
+                )
+
+                frameworkRepository.save(updatedFramework)
+                return true
+            }
+        }
+        return false
+    }
+
     private fun toFrameworkDetail(framework: Framework): FrameworkDetail {
         return FrameworkDetail(
             id = framework.id.value,

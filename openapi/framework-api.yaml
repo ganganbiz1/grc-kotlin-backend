@@ -190,6 +190,31 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /frameworks/versions/{versionId}/activate:
+    post:
+      tags:
+        - Framework
+      summary: 版を有効化
+      description: 指定した版のステータスをACTIVEに変更する
+      operationId: activateVersion
+      parameters:
+        - name: versionId
+          in: path
+          required: true
+          description: 版ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: 有効化成功
+        '404':
+          description: 版が見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   schemas:
     CreateFrameworkRequest:

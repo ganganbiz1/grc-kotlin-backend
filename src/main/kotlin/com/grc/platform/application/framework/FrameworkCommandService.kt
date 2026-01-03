@@ -28,4 +28,9 @@ interface FrameworkCommandService {
      * 版を新規作成する
      */
     fun createVersion(frameworkId: FrameworkId, versionNumber: String, effectiveDate: LocalDate?): FrameworkVersionId?
+
+    /**
+     * 版を有効化する
+     */
+    fun activateVersion(versionId: FrameworkVersionId): Boolean
 }
